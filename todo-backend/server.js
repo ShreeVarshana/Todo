@@ -1,116 +1,106 @@
-//Using Express
-const express = require('express')
+const express = require('express');
 const mongoose = require('mongoose');
+const cors = require('cors');
 
-
-//create an instance of express
+// Create an instance of express
 const app = express();
-app.use(express.json())
 
-//Sample in-memory storage for todo items
-//let todos = [];
+app.use(express.json());
+app.use(cors());
 
-
-
-//connecting mongodb
+// Connecting to MongoDB
 mongoose.connect('mongodb://localhost/mern-app')
     .then(() => {
-        console.log('DB connected')
+        console.log('Database connected successfully');
     })
     .catch((err) => {
-        console.log(err)
-    })
+        console.error('Failed to connect to MongoDB:', err.message);
+    });
 
-//creating schema
+// Defining the schema
 const todoSchema = new mongoose.Schema({
     title: {
         required: true,
-        type: String
+        type: String,
     },
-    description: String
-})
+    description: {
+        type: String,
+        default: '',
+    },
+});
 
+// Creating a model
+const TodoModel = mongoose.model('Todo', todoSchema);
 
-//creating a model
-const todomodel = mongoose.model('Todo', todoSchema);
-
-//Create a new todo item
+// Create a new todo item
 app.post('/todos', async (req, res) => {
-    const { title, description } = req.body;
-    // const newTodo = {
-    //    id: todos.length + 1,
-    //   title,
-    //    description
-    // };
+    console.log('Request Body:', req.body); // Log request body for debugging
 
-    //todos.push(newTodo);
-    // console.log(todos);
+    const { title, description } = req.body;
 
     try {
-        const newTodo = new todomodel({ title, description });
-        await newTodo.save()
+        const newTodo = new TodoModel({ title, description });
+        await newTodo.save();
         res.status(201).json(newTodo);
-
     } catch (error) {
-        console.log(error)
-        res.status(500).json({ message: error.message });
+        console.error('Error creating todo:', error.message);
+        res.status(500).json({ message: 'Failed to create todo. Please try again later.' });
     }
+});
 
-})
 
-//Get All items
+// Get all todo items
 app.get('/todos', async (req, res) => {
     try {
-        const todos = await todomodel.find();
+        const todos = await TodoModel.find();
         res.json(todos);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: error.message });
+        console.error('Error fetching todos:', error.message);
+        res.status(500).json({ message: 'Failed to retrieve todos. Please try again later.' });
     }
+});
 
-})
-
-//update a todo item
-app.put("/todos/:id", async (req, res) => {
+// Update a todo item
+app.put('/todos/:id', async (req, res) => {
+    const { title, description } = req.body;
+    const id = req.params.id;
 
     try {
-        const { title, description } = req.body;
-        const id = req.params.id;
-        const UpdatedTodo = await todomodel.findByIdAndUpdate(
+        const updatedTodo = await TodoModel.findByIdAndUpdate(
             id,
             { title, description },
-            { new: true }
-        )
+            { new: true, runValidators: true }
+        );
 
-        if (!UpdatedTodo) {
-            return res.status(404).json({ message: "Todo not found" })
+        if (!updatedTodo) {
+            return res.status(404).json({ message: 'Todo item not found' });
         }
-        res.json(UpdatedTodo)
-
+        res.json(updatedTodo);
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: error.message });
+        console.error('Error updating todo:', error.message);
+        res.status(500).json({ message: 'Failed to update todo. Please try again later.' });
     }
+});
 
-
-})
-
-//Delete an todo Item
+// Delete a todo item
 app.delete('/todos/:id', async (req, res) => {
+    const id = req.params.id;
+
     try {
-        const id = req.params.id;
-        await todomodel.findByIdAndDelete(id);
+        const deletedTodo = await TodoModel.findByIdAndDelete(id);
+
+        if (!deletedTodo) {
+            return res.status(404).json({ message: 'Todo item not found' });
+        }
         res.status(204).end();
-
     } catch (error) {
-        console.log(error);
-        res.status(500).json({ message: error.message });
+        console.error('Error deleting todo:', error.message);
+        res.status(500).json({ message: 'Failed to delete todo. Please try again later.' });
     }
-})
+});
 
-
-//Start the server
+// Start the server
 const port = 8000;
 app.listen(port, () => {
-    console.log("Server is listening to the port " + port);
-})
+    console.log('Server is listening on port ' + port);
+});
